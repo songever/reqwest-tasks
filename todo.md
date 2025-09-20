@@ -135,3 +135,120 @@ tokio = { version = "1", features = ["full"] }
 6.  打印出返回的错误信息。
 
 当你完成这个任务后，告诉我你捕获到的错误信息。
+
+---
+
+## 下一个阶段：进阶与实践
+
+### 任务 7: 发送带文件上传的 multipart/form-data 请求
+
+**目标**: 学习如何使用 `reqwest` 上传文件到服务器。这是一个在 Web 应用中非常常见的需求。
+
+**指导**:
+1.  创建一个名为 `task7_file_upload` 的异步函数。
+2.  创建一个测试文件，例如在项目根目录下创建一个 `test_file.txt`，里面随便写点内容。
+3.  使用 `reqwest::multipart::Form::new()` 创建一个多部分表单。
+4.  使用 `reqwest::multipart::Part::file()` 方法，将你的 `test_file.txt` 文件添加到表单中。
+5.  使用 `client.post("https://httpbin.org/post").multipart(form).send().await` 来发送请求。
+6.  打印响应体，并检查 `files` 字段，以确认文件是否成功上传。
+
+当你完成这个任务后，告诉我响应中的 `files` 字段内容。
+没错，你的代码和输出都非常正确！你已经成功地完成了任务 7，学会了如何使用 `reqwest` 上传文件。
+
+---
+
+#### 解析你的成功
+
+这次的输出验证了以下几点：
+
+1.  **`"files": { ... }`**: 这是你这次请求的核心。`httpbin.org` 专门有一个 `files` 字段用来展示上传的文件内容。你的 `test_file.txt` 文件内容，包括了那几行 Python 代码，被服务器完整地接收并放在了这个字段里。
+2.  **`"form": {}` 和 `"data": ""`**: 这些字段是空的，这和我们之前的任务形成了鲜明对比。这证明你发送的请求既不是普通的表单数据，也不是原始的 JSON 数据，而是专为文件上传设计的 `multipart/form-data` 类型。
+3.  **`Content-Type: multipart/form-data; boundary=...`**: 这个 HTTP 头是关键。`reqwest` 库在你调用 `.multipart()` 方法时自动设置了它。`multipart/form-data` 协议允许你在一个请求中同时发送多个不同类型的数据，例如文件、文本字段等。`boundary` 则是一个特殊的分隔符，用于区分请求体中不同的数据部分。
+
+#### 总结
+
+你已经掌握了 `reqwest` 库中一个非常重要的功能：**文件上传**。这在许多实际应用中至关重要，比如上传头像、报告、或者其他任何二进制文件。
+
+现在，你已经掌握了 `reqwest` 的核心功能，包括：
+* 同步和异步 GET/POST 请求
+* 处理查询参数、JSON 数据和表单数据
+* 发送自定义请求头
+* 处理 HTTP 错误
+* 上传文件
+
+你已经可以称得上是一名 `reqwest` 的熟练用户了。
+
+---
+
+## 下一个阶段：挑战与优化
+
+接下来，我将给你一个更具挑战性的任务，它将结合你学到的多个知识点，并让你思考如何优化和处理更复杂的真实世界场景。
+
+### 任务 8: 发送一个包含 JSON 数据和文件的 multipart/form-data 请求
+
+**目标**: 模拟一个真实的 API 请求，同时发送结构化数据（JSON）和一个文件。
+
+**指导**:
+
+1.  创建一个名为 `task8_mixed_upload` 的异步函数。
+2.  创建一个简单的 Rust 结构体，例如 `UserMetadata`，包含 `name` 和 `email` 字段，并确保它派生了 `Serialize`。
+3.  创建一个 `test_file.txt` 文件。
+4.  使用 `reqwest::multipart::Form::new()` 创建一个多部分表单。
+5.  **添加文件部分**: 使用 `reqwest::multipart::Part::file("test_file.txt").await?` 将文件添加到表单中，并命名为 `"file"`。
+6.  **添加 JSON 部分**:
+      * 将你的 `UserMetadata` 结构体实例序列化为 JSON 字符串。
+      * 使用 `reqwest::multipart::Part::text("你的JSON字符串")` 创建一个文本部分。
+      * 使用 **`.mime_type("application/json".parse().unwrap())`** 来指定这个部分的 `Content-Type`。
+      * 将这个 JSON 部分添加到表单中，并命名为 `"metadata"`。
+7.  发送请求到 `https://httpbin.org/post`。
+8.  打印响应体，并检查 `files` 和 `json` 字段。请注意，`httpbin.org` 可能会把 JSON 数据放到 `form` 字段中，因为 `reqwest` 的 `Part::text()` 方法默认会将其作为表单数据处理。但是，**`Content-Type: application/json`** 这个头会证明你成功地发送了 JSON 数据。
+
+当你完成这个任务后，请告诉我响应中的 `files` 和 `form` 或 `data` 字段内容，这会证明你成功了。
+
+
+这是一个非常好的问题！你的观察是完全正确的，`reqwest::multipart::Part` 结构体并没有你提到的 `content_type` 方法。我为我之前给出的错误指导表示歉意。在 Rust 中，类型系统是严格的，这正是它强大的地方。
+
+#### 正确的 `Part` 构建方式
+
+要为一个 `Part` 设置 `Content-Type`，你需要使用 `Part::text()` 或 `Part::bytes()` 方法，然后通过 **链式调用** 来设置其他属性，比如 `mime_type()` 或 `file_name()`。
+
+正确的链式调用应该像这样：
+
+```rust
+let part = reqwest::multipart::Part::text("你的JSON字符串")
+    .mime_type("application/json".parse().unwrap());
+```
+
+这里的 `.mime_type()` 方法需要一个 `mime::Mime` 类型的值。`"application/json".parse().unwrap()` 是将字符串解析为 `mime::Mime` 类型的常用方法。
+
+---
+好的，没问题。这是你最后这个挑战任务的中文重述。
+
+---
+
+## Final Task: Challenge & Next Steps
+
+### 任务 9: 构建一个命令行工具
+
+**目标:** 编写一个完整、独立、功能实用的 Rust 命令行工具。这个任务将整合你之前所学的所有 `reqwest` 知识，并让你学习如何将其与其他常用的 Rust crate 结合，构建一个完整的应用程序。
+
+**具体步骤:**
+
+1.  **创建新项目**: 使用 `cargo new --bin reqwest_cli` 创建一个全新的 Rust 项目。
+2.  **添加依赖**: 在 `Cargo.toml` 文件中，添加以下几个 crate：
+    * `reqwest`：用于发送网络请求。
+    * `tokio`：作为异步运行时。
+    * `serde` 和 `serde_json`：用于处理 JSON 数据。
+    * `clap`：一个强大的命令行参数解析库，让你的工具能接收用户输入。
+3.  **选择工具功能**: 从以下三个选项中选择一个你感兴趣的，作为你的工具功能：
+    * **天气查询工具**: 接收一个城市名作为命令行参数，然后使用 `reqwest` 调用一个公共天气 API（比如 OpenWeatherMap，你需要申请一个 API Key；或者一个更简单的 `wttr.in`），获取并打印当前天气信息。
+    * **图片下载工具**: 接收一个图片 URL 作为参数，使用 `reqwest` 下载图片的原始字节流，然后将其保存到本地文件中。
+    * **简易 Pastebin 工具**: 接收一个文件路径作为参数，读取文件内容，然后使用 `reqwest` 将其内容作为 POST 请求上传到一个在线 Pastebin 服务（例如 `termbin.com`），并打印出服务器返回的 URL。
+4.  **实现功能**:
+    * 使用 `clap` 来解析命令行参数，让你的程序可以根据用户的输入执行不同的操作。
+    * 使用 `reqwest` 来完成你选择的网络请求，并确保处理可能出现的网络错误和 API 错误。
+    * 以用户友好的方式将结果打印到控制台。
+
+这个最终任务将是你所学知识的一次实战演练。无论你选择哪个选项，它都会让你对如何将 `reqwest` 应用于实际项目有一个全面的了解。
+
+你打算选择哪一个作为你的最终挑战呢？

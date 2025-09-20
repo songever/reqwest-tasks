@@ -2,7 +2,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 #[tokio::main]
 async fn main() {
-    if let Err(e) = task5_custom_headers().await {
+    if let Err(e) = task8_mixed_upload().await {
         eprintln!("Error: {:#?}", e);
     }
 }
@@ -25,7 +25,7 @@ async fn task2_get_with_params() -> Result<()> {
     println!("{}", response.text().await?);
     Ok(())
 }
-
+// 任务 3: 发送一个异步 GET 请求并处理 JSON
 #[derive(Debug, Deserialize)]
 struct Mystruct {
     slideshow: Slideshow,
@@ -61,7 +61,7 @@ struct Myrequest {
     id: u16,
     name: String,
 }
-
+// 任务 4: 发送一个 POST 请求并处理 JSON 响应
 async fn task4_post_form() -> Result<()> {
     let request = Myrequest {
         user: "1021940593@qq.com".to_string(),
@@ -80,9 +80,9 @@ async fn task4_post_form() -> Result<()> {
     println!("{}", response.text().await?);
     Ok(())
 }
-
+// 任务 5: 发送自定义请求头
 async fn task5_custom_headers() -> Result<()> {
-    let response = reqwest::Client::new()
+    let response_text = reqwest::Client::new()
         .get("https://httpbin.org/get")
         .header("X-My-Custom-Header", "rust-is-awesome")
         .send()
@@ -91,6 +91,68 @@ async fn task5_custom_headers() -> Result<()> {
         .await?;
 
     
-    println!("{:#?}", response["headers"]);
+    println!("{:#?}", response_text["headers"]);
+    Ok(())
+}
+
+async fn task6_handle_error1() -> Result<()> {
+    let client = reqwest::Client::new();
+    let response = client.get("https://httpbin.org/status/404").send().await?;
+    let status = response.status();
+    if !status.is_success() {
+        return Err(anyhow::anyhow!("Request failed with status code: {}", status));
+    }
+    Ok(())
+}
+
+async fn task6_handle_error2() -> Result<()> {
+    let client = reqwest::Client::new();
+    let response = client.get("https://httpbin.org/status/404").send().await?;
+    let status = response.error_for_status()?;
+    println!("Request succeeded with status code: {}", status.status());
+    Ok(())
+}
+
+async fn task7_file_upload() -> Result<()> {
+    let client = reqwest::Client::new();
+    let form = reqwest::multipart::Form::new();
+    let file = reqwest::multipart::Part::file("test_file.txt").await?;
+
+    let response = client.post("https://httpbin.org/post")
+        .multipart(form.part("files".to_string(), file))
+        .send()
+        .await?;
+
+    println!("{}", response.text().await?);
+    Ok(())
+}
+
+async fn task8_mixed_upload() -> Result<()> {
+    #[derive(Debug, Serialize)]
+    struct UserMetadata {
+        name: String,
+        email: String,
+    }
+
+    let user_metadata = UserMetadata {
+        name: "songever".to_string(),
+        email: "1021940593@qq.com".to_string(),
+    };
+
+    let client = reqwest::Client::new();
+    let form = reqwest::multipart::Form::new();
+
+    let file =  reqwest::multipart::Part::file("test_file.txt").await?;
+    let user_metadata_json = serde_json::to_string(&user_metadata)?;
+    let json_part = reqwest::multipart::Part::text(user_metadata_json).mime_str("application/json")?;
+    let form = form.part("files", file)
+        .part("json", json_part);
+
+    let response = client.post("https://httpbin.org/post")
+        .multipart(form)
+        .send()
+        .await?;
+
+    println!("{}", response.text().await?);
     Ok(())
 }
